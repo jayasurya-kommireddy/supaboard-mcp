@@ -18,3 +18,4 @@ out/
 
 # Debug
 npm-debug.log*
+.vercel

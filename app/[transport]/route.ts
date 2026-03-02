@@ -1,6 +1,37 @@
-import { createMcpHandler } from 'mcp-handler'
+import { createMcpHandler, withMcpAuth } from 'mcp-handler'
+
+interface AuthInfo {
+  token: string
+  scopes: string[]
+  clientId: string
+  extra?: Record<string, unknown>
+}
 import { z } from 'zod'
 import { runQuery, listTables, describeTable } from '@/lib/clickhouse'
+
+// Token verification - checks Bearer token against env var
+const verifyToken = async (
+  req: Request,
+  bearerToken?: string
+): Promise<AuthInfo | undefined> => {
+  if (!bearerToken) return undefined
+
+  const expectedToken = process.env.MCP_SECRET_TOKEN
+  if (!expectedToken) {
+    console.error('MCP_SECRET_TOKEN not configured')
+    return undefined
+  }
+
+  if (bearerToken !== expectedToken) {
+    return undefined
+  }
+
+  return {
+    token: bearerToken,
+    scopes: ['read:data'],
+    clientId: 'supaboard-team',
+  }
+}
 
 const handler = createMcpHandler(
   (server) => {
@@ -149,4 +180,10 @@ Retail Database Summary:
   }
 )
 
-export { handler as GET, handler as POST }
+// Wrap with auth - requires valid Bearer token
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true,
+  requiredScopes: ['read:data'],
+})
+
+export { authHandler as GET, authHandler as POST }
