@@ -147,6 +147,28 @@ Retail Database Summary:
   }
 )
 
-// For now, export handler directly (auth temporarily disabled for testing)
-// TODO: Re-enable auth after MCP connection is verified
-export { mcpHandler as GET, mcpHandler as POST }
+// Auth check middleware
+function checkAuth(request: Request): boolean {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) return false
+
+  const token = authHeader.slice(7)
+  const expectedToken = process.env.MCP_SECRET_TOKEN
+
+  return token === expectedToken
+}
+
+// Handler with auth
+async function handler(request: Request) {
+  // Check auth for POST requests (actual MCP calls)
+  // GET requests are for SSE connection setup
+  if (request.method === 'POST' && !checkAuth(request)) {
+    return new Response(
+      JSON.stringify({ error: 'unauthorized', error_description: 'Invalid or missing Bearer token' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+  return mcpHandler(request)
+}
+
+export { handler as GET, handler as POST }
