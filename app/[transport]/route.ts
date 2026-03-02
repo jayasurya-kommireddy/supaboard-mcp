@@ -28,7 +28,7 @@ const verifyToken = async (
 
   return {
     token: bearerToken,
-    scopes: ['read:data'],
+    scopes: ['read:data', 'claudeai'],
     clientId: 'supaboard-team',
   }
 }
@@ -183,7 +183,6 @@ Retail Database Summary:
 // Wrap with auth - requires valid Bearer token
 const authHandler = withMcpAuth(handler, verifyToken, {
   required: true,
-  requiredScopes: ['read:data'],
 })
 
 export { authHandler as GET, authHandler as POST }
