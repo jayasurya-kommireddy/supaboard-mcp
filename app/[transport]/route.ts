@@ -1,39 +1,20 @@
-import { createMcpHandler, withMcpAuth } from 'mcp-handler'
-
-interface AuthInfo {
-  token: string
-  scopes: string[]
-  clientId: string
-  extra?: Record<string, unknown>
-}
+import { createMcpHandler } from 'mcp-handler'
 import { z } from 'zod'
+import { NextResponse } from 'next/server'
 import { runQuery, listTables, describeTable } from '@/lib/clickhouse'
 
-// Token verification - checks Bearer token against env var
-const verifyToken = async (
-  req: Request,
-  bearerToken?: string
-): Promise<AuthInfo | undefined> => {
-  if (!bearerToken) return undefined
+// Simple auth check
+function checkAuth(request: Request): boolean {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) return false
 
+  const token = authHeader.slice(7)
   const expectedToken = process.env.MCP_SECRET_TOKEN
-  if (!expectedToken) {
-    console.error('MCP_SECRET_TOKEN not configured')
-    return undefined
-  }
 
-  if (bearerToken !== expectedToken) {
-    return undefined
-  }
-
-  return {
-    token: bearerToken,
-    scopes: ['read:data', 'claudeai'],
-    clientId: 'supaboard-team',
-  }
+  return token === expectedToken
 }
 
-const handler = createMcpHandler(
+const mcpHandler = createMcpHandler(
   (server) => {
     // Tool 1: Run SQL query (read-only)
     server.registerTool(
@@ -56,11 +37,9 @@ const handler = createMcpHandler(
             }
           }
 
-          // Limit output to 100 rows
           const limitedRows = result.rows.slice(0, 100)
           const truncated = result.rows.length > 100
 
-          // Build markdown table
           const header = `| ${result.columns.join(' | ')} |`
           const separator = `| ${result.columns.map(() => '---').join(' | ')} |`
           const rows = limitedRows.map((row) => `| ${row.map((v) => String(v ?? 'NULL')).join(' | ')} |`)
@@ -180,9 +159,15 @@ Retail Database Summary:
   }
 )
 
-// Wrap with auth - requires valid Bearer token
-const authHandler = withMcpAuth(handler, verifyToken, {
-  required: true,
-})
+// Wrap with simple auth check
+async function handler(request: Request) {
+  if (!checkAuth(request)) {
+    return NextResponse.json(
+      { error: 'unauthorized', error_description: 'Invalid or missing Bearer token' },
+      { status: 401 }
+    )
+  }
+  return mcpHandler(request)
+}
 
-export { authHandler as GET, authHandler as POST }
+export { handler as GET, handler as POST }
