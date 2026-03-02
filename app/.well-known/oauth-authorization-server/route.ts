@@ -9,8 +9,8 @@ export async function GET() {
 
   return NextResponse.json({
     issuer: baseUrl,
-    authorization_endpoint: `${baseUrl}/oauth/authorize`,
-    token_endpoint: `${baseUrl}/oauth/token`,
+    authorization_endpoint: `${baseUrl}/authorize`,
+    token_endpoint: `${baseUrl}/token`,
     token_endpoint_auth_methods_supported: ['none', 'client_secret_post'],
     grant_types_supported: ['authorization_code', 'client_credentials'],
     response_types_supported: ['code'],
