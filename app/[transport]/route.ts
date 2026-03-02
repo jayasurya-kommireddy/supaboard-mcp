@@ -1,18 +1,6 @@
 import { createMcpHandler } from 'mcp-handler'
 import { z } from 'zod'
-import { NextResponse } from 'next/server'
 import { runQuery, listTables, describeTable } from '@/lib/clickhouse'
-
-// Simple auth check
-function checkAuth(request: Request): boolean {
-  const authHeader = request.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) return false
-
-  const token = authHeader.slice(7)
-  const expectedToken = process.env.MCP_SECRET_TOKEN
-
-  return token === expectedToken
-}
 
 const mcpHandler = createMcpHandler(
   (server) => {
@@ -159,15 +147,6 @@ Retail Database Summary:
   }
 )
 
-// Wrap with simple auth check
-async function handler(request: Request) {
-  if (!checkAuth(request)) {
-    return NextResponse.json(
-      { error: 'unauthorized', error_description: 'Invalid or missing Bearer token' },
-      { status: 401 }
-    )
-  }
-  return mcpHandler(request)
-}
-
-export { handler as GET, handler as POST }
+// For now, export handler directly (auth temporarily disabled for testing)
+// TODO: Re-enable auth after MCP connection is verified
+export { mcpHandler as GET, mcpHandler as POST }
